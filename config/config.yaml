@@ -1,0 +1,11 @@
+mode: debug # debug, release
+
+logging:
+  level: info
+  # path: 
+
+kafka:
+  brokers:
+    - localhost:9091
+    - localhost:9092
+    - localhost:9093
