@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"log/slog"
 	"os"
@@ -32,7 +33,8 @@ type LoginMessage struct {
 }
 
 type RegisterMessage struct {
-	Email string `json:"email"`
+	Email       string `json:"email"`
+	ConfirmLink string `json:"confirm_link"`
 }
 
 func main() {
@@ -141,7 +143,7 @@ func StartRegisterConsume(ctx context.Context, logger *slog.Logger, consumerGrou
 		emailMessage := mail.Message{
 			Receiver: registerMessage.Email,
 			Subject:  "Registration",
-			Body:     "You are registered",
+			Body:     fmt.Sprintf("You are successfully registered! To confirm your email, please visit the following link: %s", registerMessage.ConfirmLink),
 		}
 
 		if err := emailSender.SendMessage(emailMessage); err != nil {
