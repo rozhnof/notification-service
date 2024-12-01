@@ -67,6 +67,7 @@ func main() {
 			logger.Error("failed close login consumer group")
 		}
 	}()
+	logger.Info("init login consumer group success")
 
 	registerConsumerGroup, err := kafka.NewConsumerGroup(cfg.Kafka.BrokerList, "registers-group")
 	if err != nil {
@@ -78,6 +79,7 @@ func main() {
 			logger.Error("failed close register consumer group")
 		}
 	}()
+	logger.Info("init register consumer group success")
 
 	go StartLoginConsume(ctx, logger, loginConsumerGroup, emailSender)
 	go StartRegisterConsume(ctx, logger, registerConsumerGroup, emailSender)
