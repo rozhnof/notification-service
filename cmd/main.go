@@ -28,15 +28,6 @@ type Config struct {
 	Mail   config.Mail
 }
 
-type LoginMessage struct {
-	Email string `json:"email"`
-}
-
-type RegisterMessage struct {
-	Email       string `json:"email"`
-	ConfirmLink string `json:"confirm_link"`
-}
-
 func main() {
 	ctx, _ := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 
