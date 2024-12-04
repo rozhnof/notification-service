@@ -11,9 +11,6 @@ import (
 	"github.com/rozhnof/notification-service/internal/pkg/mail"
 )
 
-type NotificationApp struct {
-}
-
 func Run(ctx context.Context, mailSender *mail.Sender, logger *slog.Logger, brokerList []string) error {
 	senders := []services.Sender{
 		NewMailSender(mailSender),
