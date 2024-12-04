@@ -38,7 +38,7 @@ func Run(ctx context.Context, mailSender *mail.Sender, logger *slog.Logger, brok
 			logger.Error("failed close register consumer group")
 		}
 	}()
-	go StartConsume(ctx, logger, []string{"registers"}, registerConsumerGroup, notificationSender.ConsumeLoginMessage)
+	go StartConsume(ctx, logger, []string{"registers"}, registerConsumerGroup, notificationSender.ConsumeRegisterMessage)
 
 	<-ctx.Done()
 
