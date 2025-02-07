@@ -1,6 +1,7 @@
 package kafka
 
 import (
+	"context"
 	"time"
 
 	"github.com/IBM/sarama"
@@ -8,9 +9,10 @@ import (
 
 type ConsumerGroup struct {
 	sarama.ConsumerGroup
+	topics []string
 }
 
-func NewConsumerGroup(brokerList []string, groupID string) (ConsumerGroup, error) {
+func NewConsumerGroup(brokerList []string, groupID string, topics []string) (ConsumerGroup, error) {
 	cfg := sarama.NewConfig()
 
 	cfg.Version = sarama.MaxVersion
@@ -28,5 +30,10 @@ func NewConsumerGroup(brokerList []string, groupID string) (ConsumerGroup, error
 
 	return ConsumerGroup{
 		ConsumerGroup: consumerGroup,
+		topics:        topics,
 	}, nil
+}
+
+func (cg ConsumerGroup) Consume(ctx context.Context, handler sarama.ConsumerGroupHandler) error {
+	return cg.ConsumerGroup.Consume(ctx, cg.topics, handler)
 }

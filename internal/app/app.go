@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"encoding/json"
 	"log/slog"
 
 	"github.com/IBM/sarama"
@@ -11,14 +12,10 @@ import (
 	"github.com/rozhnof/notification-service/internal/pkg/mail"
 )
 
-func Run(ctx context.Context, mailSender *mail.Sender, logger *slog.Logger, brokerList []string) error {
-	senders := []services.Sender{
-		NewMailSender(mailSender),
-	}
+func Run(ctx context.Context, mailSender mail.Sender, logger *slog.Logger, brokerList []string) error {
+	notificationSender := services.NewEmailNotificationService(logger, mailSender)
 
-	notificationSender := services.NewNotificationSender(senders, logger)
-
-	loginConsumerGroup, err := kafka.NewConsumerGroup(brokerList, "logins-group")
+	loginConsumerGroup, err := kafka.NewConsumerGroup(brokerList, "logins-group", []string{"logins"})
 	if err != nil {
 		return errors.Wrap(err, "failed init consumer group")
 	}
@@ -27,9 +24,9 @@ func Run(ctx context.Context, mailSender *mail.Sender, logger *slog.Logger, brok
 			logger.Error("failed close login consumer group")
 		}
 	}()
-	go StartConsume(ctx, logger, []string{"logins"}, loginConsumerGroup, notificationSender.ConsumeLoginMessage)
+	go StartConsume(ctx, logger, loginConsumerGroup, notificationSender.SendLoginNotification)
 
-	registerConsumerGroup, err := kafka.NewConsumerGroup(brokerList, "registers-group")
+	registerConsumerGroup, err := kafka.NewConsumerGroup(brokerList, "registers-group", []string{"registers"})
 	if err != nil {
 		return errors.Wrap(err, "failed init consumer group")
 	}
@@ -38,17 +35,24 @@ func Run(ctx context.Context, mailSender *mail.Sender, logger *slog.Logger, brok
 			logger.Error("failed close register consumer group")
 		}
 	}()
-	go StartConsume(ctx, logger, []string{"registers"}, registerConsumerGroup, notificationSender.ConsumeRegisterMessage)
+	go StartConsume(ctx, logger, registerConsumerGroup, notificationSender.SendRegisterMessage)
 
 	<-ctx.Done()
 
 	return nil
 }
 
-func StartConsume(ctx context.Context, logger *slog.Logger, topics []string, consumerGroup kafka.ConsumerGroup, messageHandler func([]byte) error) {
+func StartConsume[T any](ctx context.Context, logger *slog.Logger, consumerGroup kafka.ConsumerGroup, msgHandler func(context.Context, T) error) {
 	handler := kafka.NewConsumerGroupHandler(func(cm *sarama.ConsumerMessage) {
-		if err := messageHandler(cm.Value); err != nil {
-			logger.Error("failed send email message", slog.String("error", err.Error()))
+		var msg T
+
+		if err := json.Unmarshal(cm.Value, &msg); err != nil {
+			logger.Error("failed parse message", slog.String("error", err.Error()))
+			return
+		}
+
+		if err := msgHandler(ctx, msg); err != nil {
+			logger.Error("failed send message", slog.String("error", err.Error()))
 			return
 		}
 	})
@@ -65,8 +69,8 @@ func StartConsume(ctx context.Context, logger *slog.Logger, topics []string, con
 			logger.Info("consumer group stopped")
 			return
 		default:
-			if err := consumerGroup.Consume(ctx, topics, &handler); err != nil {
-				logger.Error("consumer group: consume error", slog.String("error", err.Error()))
+			if err := consumerGroup.Consume(ctx, &handler); err != nil {
+				logger.Error("consume error", slog.String("error", err.Error()))
 			}
 		}
 	}
